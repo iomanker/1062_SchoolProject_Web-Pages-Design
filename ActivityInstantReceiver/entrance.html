@@ -1,0 +1,171 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>入口</title>
+	<meta charset="utf-8" />
+    <link rel="stylesheet" href="css/event.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+    <style type="text/css">
+        html,body{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .outerCard{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .outerCard{
+            max-width: 560px;
+            width: 100%;
+        }
+        .outerCard .title{
+            font-size: 42px;
+            border-left: 5px solid #ed2553;
+            padding-left: 36px;
+            color: #ed2553;
+        }
+        .boardertitle{
+            padding-top: 10px;
+        }
+        .input-container {
+          position: relative;
+          margin: 0 60px 50px;
+        }
+        .button-container{
+            display: flex;
+            justify-content: center;
+        }
+        .customBtn{
+            width: 80%;
+            color: #e3e3e3;
+            background-color: white;
+            cursor: pointer;
+            position: relative;
+            border: 2px solid #e3e3e3;
+            padding: 20px 20px;
+            font-size: 24px;
+            font-weight: 600;
+            transition: .3s ease;
+        }
+        .customBtn:hover {
+            color: #ed2553;
+            border-color: #ed2553;
+            background-color: transparent;
+        }
+        .customBtn.disabled:hover{
+            color: #e3e3e3;
+            border-color: #e3e3e3;
+        }
+
+
+        .outerCard .title {
+            animation: itemEnterAnimation 1s ease;
+            animation-delay: -.3s;
+        }
+        .outerCard .first {
+            animation: itemEnterAnimation 1s ease;
+            animation-delay: -.2s;
+        }
+        .outerCard .second {
+            animation: itemEnterAnimation 1s ease;
+            animation-delay: -.1s;
+        }
+        .outerCard .third {
+            animation: itemEnterAnimation 1s ease;
+        }
+        @keyframes itemEnterAnimation {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0%);
+            opacity: 1;
+          }
+        }
+    </style>
+    <script type="text/javascript">
+        authCookies();
+        function authCookies() {
+            let LOGINSTR = Cookies.get('login');
+            if (LOGINSTR != undefined) {
+                let LOGIN = JSON.parse(Cookies.get('login'));
+                switch (LOGIN.authority) {
+                    case 1:
+                        document.location.href = "manage.html";
+                        break;
+                    default:
+                        document.location.href = "eventCenter.html";
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="outerCard">
+        <div class="col s12 m4">
+            <div class="card white">
+                <div class="boardertitle">
+                    <h1 class="title">請先登入</h1>
+                </div>
+                <div class="card-content loginCard">
+                    <form id="login">
+                        <div class="input-field input-container first">
+                            <input id="username" type="text" class="validate" />
+                            <label for="username">帳號</label>
+                        </div>
+                        <div class="input-field input-container second">
+                            <input id="pwd" type="password" class="validate" />
+                            <label for="pwd">密碼</label>
+                        </div>
+                        <div class="button-container third">
+                            <button type="submit" id="loginbtn" class="customBtn waves-effect waves-red transparent">登入</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        authCookies();
+        $("#login").submit(function (event) {
+            event.preventDefault();
+            $("button#loginbtn").addClass("disabled");
+            $("button#loginbtn").attr("disabled", "disabled");
+            let ajaxContent = {
+                "action": "login",
+                "username": $(this).find("#username").val(),
+                "password": $(this).find("#pwd").val()
+            }
+            $.ajax({
+                url: "api/account",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(ajaxContent),
+                success: function (data) {
+                    console.log(data);
+                    $("button#loginbtn").html("導向中");
+                    Cookies.set('login', { Id: parseInt(data.Id), authority: parseInt(data.authority) }, { expires: 7 });
+                    Materialize.toast('登入成功 導向中', 1200);
+                    setTimeout(function () {
+                        document.location.href = "eventCenter.html";
+                    }, 1500);
+                },
+                error: function (data) {
+                    Materialize.toast('登入失敗 原因: ' + data.responseJSON.Message, 4000);
+                    $("button#loginbtn").removeClass("disabled");
+                    $("button#loginbtn").removeAttr("disabled");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

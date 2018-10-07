@@ -1,0 +1,330 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>管理頁面</title>
+	<meta charset="utf-8" />
+    <link rel="stylesheet" href="css/event.css">
+    <link rel="stylesheet" href="css/eventPreload.css" />
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+    <style type="text/css">
+        .nav-wrapper{
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        .modal{
+            overflow-y: inherit;
+        }
+    </style>
+    <script type="text/javascript">
+        authCookies();
+        function authCookies() {
+            let LOGINSTR = Cookies.get('login');
+            if (LOGINSTR != undefined) {
+                let LOGIN = JSON.parse(Cookies.get('login'));
+                switch (LOGIN.authority) {
+                    case 1:
+                        break;
+                    default:
+                        document.location.href = "eventCenter.html";
+                }
+            } else {
+                document.location.href = "entrance.html";
+            }
+        }
+    </script>
+</head>
+<body>
+    <nav>
+        <div class="nav-wrapper cyan darken-3">
+            <a href="#" class="brand-logo">活動即時推播</a>
+            <ul id="nav-mobile" class="right hide-on-med-and-down">
+                <li><a class="modal-trigger" href="#modalsend">新增</a></li>
+                <li><a onclick="logout()" href="#">登出</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container" style="padding-top:30px">
+        <div class="row">
+            <div class="col s3">
+                <div class="eventListPreload">
+                    <div class="single eventItem">
+                        <div class="item line short"></div>
+                        <div class="item line long"></div>
+                    </div>
+                    <div class="single eventItem">
+                        <div class="item line short"></div>
+                        <div class="item line long"></div>
+                    </div>
+                </div>
+                <div class="eventList">
+
+                </div>
+            </div>
+            <div class="col s9">
+                <div class="eventDetailEmpty"></div>
+                <form id="editEvent" class="eventDetail" style="display:none;">
+                    <div class="input-field col s12">
+                        <input id="editDetailTitle" type="text" class="validate" />
+                        <!--<label for="editDetailTitle">活動名稱</label>-->
+                    </div>
+                    <div class="input-field col s12">
+                        <textarea id="editDetailContent" class="materialize-textarea"></textarea>
+                        <!--<label for="editDetailContent">詳細內容</label>-->
+                    </div>
+                        <button id="detailUpdate" type="submit" name="editing" class="btn">更新</button>
+                        <button id="detailDelete" type="submit" name="deleting" class="btn">刪除</button>
+                </form>
+            </div>
+        </div>
+        <div id="modalsend" class="modal">
+            <div class="row">
+                <form id="eventForm" class="col s12">
+                    <div class="modal-content">
+                        <div class="row">
+                            <div class="input-field col s12">
+                                <input id="eventName" type="text" class="validate" />
+                                <label for="eventName">活動名稱</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="input-field col s6">
+                                <select id="postType">
+                                    <option value="" disabled selected>選擇</option>
+                                    <option value="other">一般</option>
+                                    <option value="timer">限時</option>
+                                </select>
+                                <label>選擇類型</label>
+                            </div>
+                            <div class="input-field col s6">
+                                <input disabled value="" id="validTime" type="text" class="validate" />
+                                <label for="validTime">限時秒數</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="input-field col s12">
+                                <textarea id="eventContent" class="materialize-textarea"></textarea>
+                                <label for="eventContent">詳細內容</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="eventSubmit" class="btn waves-effect waves-light" type="submit" name="action">送出</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!--<script src="Scripts/jquery-1.6.4.min.js"></script>-->
+    <script src="Scripts/jquery.signalR-2.2.3.min.js"></script>
+    <script src="signalr/hubs"></script>
+    <script src="Scripts/eventMain.js"></script>
+    <script src="Scripts/loghandler.js"></script>
+    <script type="text/javascript">
+        navbarHandle();
+        $(function () {
+            // get server local time
+            var serverTime = new Date();
+            $.getJSON('api/serverTime', function (data) {
+                let temp = new Date(data);
+                serverTime.setTime(temp);
+                setInterval(function () { addSecond(); }, 1000);
+            });
+            function addSecond() {
+                serverTime.setSeconds(serverTime.getSeconds() + 1);
+            }
+            // get Web api
+            $.getJSON('api/event/?offset=' + nextEventListStart, function (data) {
+                let count = 0;
+                $.each(data, function (i, item) {
+                    createEditEventEl(item.Id, item.eventName, item.postType, item.postTime, item.validTime, 0);
+                    ++count;
+                });
+                if (count < 8) {
+                    isListtoBottom = true;
+                } else {
+                    isListtoBottom = false;
+                }
+                nextEventListStart += 8;
+                $(".eventListPreload").hide();
+            });
+            // listener for typeChange
+            $("#postType").change(function () {
+                let str = "";
+                str = $("#postType option:selected").val();
+                if (str == "timer") {
+                    $("#validTime").removeAttr("disabled");
+                } else {
+                    $("#validTime").attr("disabled", true);
+                }
+            });
+            // SignalR Connection
+            var eventReceiver = $.connection.eventReceiver;
+            eventReceiver.client.sendEvent = function (eventId, eventName, postType, postTime, validTime) {
+                ++nextEventListStart;
+                createEditEventEl(eventId, eventName, postType, postTime, validTime, 1);
+            };
+            eventReceiver.client.updateEvent = function (eventId, eventName) {
+                let str_el = '.eventItem[data-eventid="' + eventId + '"]';
+                $(str_el + ">.eventName").html(eventName);
+                if (nowClickEventId === eventId) {
+                    seeEventDetail(eventId);
+                }
+            }
+            eventReceiver.client.deleteEvent = function (eventId) {
+                let str_el = '.eventItem[data-eventid="' + eventId + '"]';
+                $(str_el).remove();
+                if (nowClickEventId === eventId) {
+                    $(".eventDetail").hide();
+                    $(".eventDetailEmpty").show();
+                }
+            }
+            eventReceiver.client.timerEventTimesup = function (eventId) {
+                for (let i = 0; i < timerEventQueue.length; ++i) {
+                    if (timerEventQueue[i].eventId === eventId) {
+                        timerEventQueue[i].isEnd = true;
+                        $(timerEventQueue[i].str_el + ">.eventValidTime").html("結束");
+                        $(timerEventQueue[i].str_el + ">.eventProgress").width("0%");
+                    }
+                }
+            };
+            $.connection.hub.start().done(function () {
+                $("#eventForm").submit(function (event) {
+                    let content = $("#eventContent").val().replace(/\r\n|\r|\n/g, "<br/>");
+                    let postType = $("#postType").val();
+                    let validTimeNum = Number.parseInt($("#validTime").val(), 10);
+                    let validSecond = (postType == "timer" && !Number.isNaN(validTimeNum)) ? validTimeNum : 0;
+                    eventReceiver.server.postEvent($("#eventName").val(),
+                        postType, content, serverTime.toISOString(), validSecond);
+                    event.preventDefault();
+                });
+            });
+
+            // AJAX handle UPDATE or DELETE
+            $("#detailUpdate").click(function (event) {
+                event.preventDefault();
+                if (nowClickEventId === -1)
+                    return;
+                let eventName = $("#editDetailTitle").val();
+                let content = $("#editDetailContent").val().replace(/\r\n|\r|\n/g, "<br/>");
+                let ajaxContent = {"eventName": eventName, "content": content};
+                $.ajax({
+                    url: "api/event/" + nowClickEventId,
+                    type: "PUT",
+                    contentType: "application/json",
+                    data: JSON.stringify(ajaxContent),
+                    success: function (data) {
+                        Materialize.toast('更新成功', 4000);
+                    },
+                    error: function (data) {
+                        Materialize.toast('更新失敗 原因: ' + data.responseJSON.Message, 4000);
+                    }
+                });
+            });
+            $("#detailDelete").click(function (event) {
+                event.preventDefault();
+                if (nowClickEventId === -1)
+                    return;
+                $.ajax({
+                    url: "api/event/" + nowClickEventId,
+                    type: "DELETE",
+                    success: function (data) {
+                        Materialize.toast('刪除成功', 4000);
+                    },
+                    error: function (data) {
+                        Materialize.toast('刪除失敗 原因: ' + data.responseJSON.Message, 4000);
+                    }
+                });
+            });
+
+            // AJAX paging listener
+            setInterval(function () {
+                processTimerEventQueue();
+            }, 500);
+            function processTimerEventQueue() {
+                for (let i = 0; i < timerEventQueue.length; ++i) {
+                    if (timerEventQueue[i].isEnd === false) {
+                        let str = getDistanceString(serverTime, timerEventQueue[i]);
+                        if (str[0] === "END") {
+                            str[0] = "結束";
+                        }
+                        $(timerEventQueue[i].str_el + ">.eventValidTime").html(str[0]);
+                        $(timerEventQueue[i].str_el + ">.eventProgress").width(str[1] + "%");
+                    }
+                }
+                while (true) {
+                    if (timerEventQueue.length !== 0 && timerEventQueue[0].isEnd === true)
+                        timerEventQueue.shift();
+                    else
+                        break;
+                }
+            }
+            var isBottomLoading = false;
+            $(".eventList").on("scroll", function () {
+                let divActualHeight = document.querySelector(".eventList").scrollHeight;
+                let scrollPosition = Math.ceil($(this).height() + $(this).scrollTop());
+                if (scrollPosition >= divActualHeight && isListtoBottom === false && isBottomLoading === false) {
+                    isBottomLoading = true;
+                    $.getJSON('api/event/?offset=' + nextEventListStart, function (data) {
+                        let count = 0;
+                        $.each(data, function (i, item) {
+                            createEditEventEl(item.Id, item.eventName, item.postType, item.postTime, item.validTime, 0);
+                            ++count;
+                        });
+                        if (count < 8) {
+                            isListtoBottom = true;
+                        } else {
+                            isListtoBottom = false;
+                        }
+                        nextEventListStart += 8;
+                    });
+                    isBottomLoading = false;
+                }
+            });
+        });
+        $(document).ready(function () {
+            $('select').material_select();
+            $('.modal').modal();
+        });
+
+        function createEditEventEl(eventId, eventName, postType, postTime, validTime, sourceFrom) {
+            let modifypostTime = new Date(postTime);
+            let modifyvalidTime = new Date(validTime);
+            let str_HTML = '<div class="eventItem waves-effect" data-eventid="' + eventId + '" onclick="seeEditingEventDetail(' + eventId + ')">' +
+                '<div class="eventType">' + modifyselfPostType(postType) + '</div>' +
+                '<div class="eventName">' + eventName + '</div>' +
+                '<div class="eventPostTime">' + modifyselfTimeStyle(modifypostTime) + '</div>';
+            if (postType == "timer") {
+                timerEventQueue.push(new timerEventObject(eventId, modifyvalidTime, modifypostTime));
+                str_HTML += '<div class="eventValidTime"></div>';
+                str_HTML += '<div class="eventProgress"></div>';
+            }
+            str_HTML += '</div>';
+            // sourceFrom= 0:Web API, 1:SignalR
+            if (sourceFrom === 0)
+                $(".eventList").append(str_HTML);
+            else {
+                if (sourceFrom === 1)
+                    $(".eventList").prepend(str_HTML);
+            }
+        }
+        var nowClickEventId = -1;
+        function seeEditingEventDetail(eventId) {
+            var br_regex = /<br\s*[\/]?>/gi;
+            $.getJSON('api/event/' + eventId, function (data) {
+                // data[0].content
+                $("#editDetailTitle").val(data[0].eventName);
+                $('#editDetailTitle').trigger('autoresize');
+                $("#editDetailContent").val(data[0].content.replace(br_regex, "\n"));
+                $('#editDetailContent').trigger('autoresize');
+            });
+            $(".eventDetail").show();
+            $(".eventDetailEmpty").hide();
+            nowClickEventId = eventId;
+        }
+    </script>
+</body>
+</html>

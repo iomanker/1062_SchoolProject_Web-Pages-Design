@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+    <script type="text/javascript">
+        authCookies();
+        function authCookies() {
+            let LOGINSTR = Cookies.get('login');
+            if (LOGINSTR != undefined) {
+                let LOGIN = JSON.parse(Cookies.get('login'));
+                switch (LOGIN.authority) {
+                    case 1:
+                        document.location.href = "manage.html";
+                        break;
+                    default:
+                        document.location.href = "eventCenter.html";
+                }
+            } else {
+                document.location.href = "entrance.html";
+            }
+        }
+    </script>
+</head>
+<body>
+
+</body>
+</html>

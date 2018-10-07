@@ -1,0 +1,216 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>任務列表</title>
+	<meta charset="utf-8" />
+    <link rel="stylesheet" href="css/event.css">
+    <link rel="stylesheet" href="css/eventPreload.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+    <style type="text/css">
+        .nav-wrapper{
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+    </style>
+    <script type="text/javascript">
+        authCookies();
+        function authCookies() {
+            let LOGINSTR = Cookies.get('login');
+            if (LOGINSTR != undefined) {
+                let LOGIN = JSON.parse(Cookies.get('login'));
+                switch (LOGIN.authority) {
+                    case 1:
+                        break;
+                    case 0:
+                        break;
+                    default:
+                        document.location.href = "eventCenter.html";
+                }
+            } else {
+                document.location.href = "entrance.html";
+            }
+        }
+    </script>
+</head>
+<body>
+    <nav>
+        <div class="nav-wrapper cyan darken-3">
+            <a href="#" class="brand-logo">活動即時推播</a>
+            <ul id="nav-mobile" class="right hide-on-med-and-down">
+                <li><a onclick="logout()" href="#">登出</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container" style="padding-top:30px">
+        <div class="voteHighlight">
+
+        </div>
+        <div class="row">
+            <div class="col s3" style="height:84vh;">
+                <div class="eventListPreload">
+                    <div class="single eventItem">
+                        <div class="item line short"></div>
+                        <div class="item line long"></div>
+                    </div>
+                    <div class="single eventItem">
+                        <div class="item line short"></div>
+                        <div class="item line long"></div>
+                    </div>
+                </div>
+                <div class="eventList">
+
+                </div>
+            </div>
+            <div class="col s9 eventDetailOutliner" style="height:84vh;">
+                <div class="eventDetailEmpty"></div>
+                <div class="eventDetail" style="display:none;">
+                    <div class="eventDetailTitle">無</div>
+                    <div class="eventDetailPostType">無</div>
+                    <div class="eventDetailPostTime">無</div>
+                    <div class="eventDetailContent">無</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--<script src="Scripts/jquery-1.6.4.min.js"></script>-->
+    <script src="Scripts/jquery.signalR-2.2.3.min.js"></script>
+    <script src="signalr/hubs"></script>
+    <script src="Scripts/eventMain.js"></script>
+    <script src="Scripts/loghandler.js"></script>
+    <script src="Scripts/randomText.js"></script>
+    <script type="text/javascript">
+        navbarHandle();
+        var randomCom = new randomText(".eventDetailTitle", {
+            timeOffset: 2
+        }, "無");
+        $(function () {
+            // get server local time
+            var serverTime = new Date();
+            $.getJSON('api/serverTime', function (data) {
+                let temp = new Date(data);
+                serverTime.setTime(temp);
+                setInterval(function () { addSecond(); }, 1000);
+            });
+            function addSecond() {
+                serverTime.setSeconds(serverTime.getSeconds() + 1);
+            }
+            // get Web api
+            $.getJSON('api/event/?offset=' + nextEventListStart, function (data) {
+                let count = 0;
+                $.each(data, function (i, item) {
+                    createEventEl(item.Id, item.eventName, item.postType, item.postTime, item.validTime, 0);
+                    ++count;
+                });
+                if (count < 8) {
+                    isListtoBottom = true;
+                } else {
+                    isListtoBottom = false;
+                }
+                nextEventListStart += 8;
+                $(".eventListPreload").hide();
+            });
+            // SignalR Connection
+            var eventReceiver = $.connection.eventReceiver;
+            eventReceiver.client.sendEvent = function (eventId, eventName, postType, postTime, validTime) {
+                ++nextEventListStart;
+                createEventEl(eventId, eventName, postType, postTime, validTime, 1);
+            };
+            eventReceiver.client.timerEventTimesup = function (eventId) {
+                // It Works 2018/05/26
+                for (let i = 0; i < timerEventQueue.length; ++i) {
+                    if (timerEventQueue[i].eventId === eventId) {
+                        timerEventQueue[i].isEnd = true;
+                        $(timerEventQueue[i].str_el + ">.eventValidTime").html("結束");
+                        $(timerEventQueue[i].str_el + ">.eventProgress").width("0%");
+                    }
+                }
+            };
+            eventReceiver.client.updateEvent = function (eventId, eventName) {
+                let str_el = '.eventItem[data-eventid="' + eventId + '"]';
+                $(str_el + ">.eventName").html(eventName);
+                if (nowClickEventId === eventId) {
+                    seeEventDetail(eventId);
+                }
+            }
+            eventReceiver.client.deleteEvent = function (eventId) {
+                let str_el = '.eventItem[data-eventid="' + eventId + '"]';
+                $(str_el).remove();
+                if (nowClickEventId === eventId) {
+                    $(".eventDetail").hide();
+                    $(".eventDetailOutliner").removeClass("active");
+                    $(".eventDetailOutliner").removeClass("z-depth-1");
+                    $(".eventDetailEmpty").show();
+                }
+            }
+            $.connection.hub.start().done(function () { });
+
+            setInterval(function () {
+                processTimerEventQueue();
+            }, 500);
+            function processTimerEventQueue() {
+                for (let i = 0; i < timerEventQueue.length; ++i) {
+                    if (timerEventQueue[i].isEnd === false) {
+                        let str = getDistanceString(serverTime, timerEventQueue[i]);
+                        if (str[0] === "END") {
+                            str[0] = "結束";
+                        }
+                        $(timerEventQueue[i].str_el + ">.eventValidTime").html(str[0]);
+                        $(timerEventQueue[i].str_el + ">.eventProgress").width(str[1] + "%");
+                    }
+                }
+                while (true) {
+                    if (timerEventQueue.length !== 0 && timerEventQueue[0].isEnd === true)
+                        timerEventQueue.shift();
+                    else
+                        break;
+                }
+            }
+            var isBottomLoading = false;
+            $(".eventList").on("scroll", function () {
+                let divActualHeight = document.querySelector(".eventList").scrollHeight;
+                let scrollPosition = Math.ceil($(this).height() + $(this).scrollTop());
+                if (scrollPosition >= divActualHeight && isListtoBottom === false && isBottomLoading === false) {
+                    isBottomLoading = true;
+                    $.getJSON('api/event/?offset=' + nextEventListStart, function (data) {
+                        let count = 0;
+                        $.each(data, function (i, item) {
+                            createEventEl(item.Id, item.eventName, item.postType, item.postTime, item.validTime, 0);
+                            ++count;
+                        });
+                        if (count < 8) {
+                            isListtoBottom = true;
+                        } else {
+                            isListtoBottom = false;
+                        }
+                        nextEventListStart += 8;
+                    });
+                    isBottomLoading = false;
+                }
+            });
+        });
+
+        var nowClickEventId = -1;
+        function seeEventDetail(eventId) {
+            let title = "";
+            $.getJSON('api/event/' + eventId, function (data) {
+                let modifypostTime = new Date(data[0].postTime);
+                let modifyvalidTime = new Date(data[0].validTime);
+                $(".eventDetail>.eventDetailTitle").html(data[0].eventName);
+                $(".eventDetail>.eventDetailPostType").html(modifyselfPostType(data[0].postType));
+                $(".eventDetail>.eventDetailPostTime").html(modifyselfTimeStyle(modifypostTime));
+                $(".eventDetail>.eventDetailContent").html("<p>" + data[0].content + "</p>");
+                randomCom.mainStart(data[0].eventName);
+            });
+            $(".eventDetailOutliner").addClass("active");
+            $(".eventDetailOutliner").addClass("z-depth-1");
+            $(".eventDetail").show();
+            $(".eventDetailEmpty").hide();
+            nowClickEventId = eventId;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>帳號管理</title>
+	<meta charset="utf-8" />
+    <link rel="stylesheet" href="css/event.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+    <style type="text/css">
+        .nav-wrapper{
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        .tfootCenter{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+    </style>
+    <script type="text/javascript">
+        authCookies();
+        function authCookies () {
+            let LOGINSTR = Cookies.get('login');
+            if (LOGINSTR != undefined) {
+                let LOGIN = JSON.parse(Cookies.get('login'));
+                switch (LOGIN.authority) {
+                    case 1:
+                        break;
+                    default:
+                        document.location.href = "eventCenter.html";
+                }
+            } else {
+                document.location.href = "entrance.html";
+            }
+        }
+    </script>
+</head>
+<body>
+    <nav>
+        <div class="nav-wrapper cyan darken-3">
+            <a href="#" class="brand-logo">活動即時推播</a>
+            <ul id="nav-mobile" class="right hide-on-med-and-down">
+                <li><a onclick="logout()" href="#">登出</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container" style="padding-top:30px">
+        <div class="row">
+            <table class="centered">
+                <thead>
+                    <tr>
+                        <th>編號</th>
+                        <th>帳號</th>
+                        <th>密碼</th>
+                        <th>權限</th>
+                        <th>功能</th>
+                    </tr>
+                </thead>
+                <tbody class="accountList">
+                    <tr class="accountPreload">
+                        <th></th>
+                        <th></th>
+                        <th style="display:flex;align-items:center;justify-content:center;">
+                            <div class="preloader-wrapper small active">
+                                <div class="spinner-layer spinner-blue-only">
+                                    <div class="circle-clipper left">
+                                        <div class="circle"></div>
+                                    </div><div class="gap-patch">
+                                        <div class="circle"></div>
+                                    </div><div class="circle-clipper right">
+                                        <div class="circle"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr id="newAccount">
+                        <td class="tfootCenter">new</td>
+                        <td><input type="text" id="newUsername" /></td>
+                        <td><input type="text" id="newPwd" /></td>
+                        <td id="newDropdown"></td>
+                        <td class="tfootCenter"><a id="sendNewAccount" class="waves-effect waves-light btn">新增</a></td>
+                    </tr>
+                </tfoot>
+            </table>
+            <!--<div class="accountList"></div>-->
+        </div>
+    </div>
+    <script src="Scripts/loghandler.js"></script>
+    <script type="text/javascript">
+        navbarHandle();
+        $(function () {
+            $.getJSON("api/account", function (data) {
+                $.each(data, function (i, item) {
+                    createAccountRow(i,item,"backward");
+                });
+                $('select').material_select();
+                $(".accountPreload").hide();
+            });
+
+            $("#sendNewAccount").click(function (event) {
+                event.preventDefault();
+                let info = [$("#newUsername").val(), $("#newPwd").val(), $("#newDropdown>.accountType option:selected").val()];
+                console.log(info);
+                let ajaxContent = {
+                    "action": "signup",
+                    "username": info[0],
+                    "password": info[1],
+                    "authority":info[2]
+                };
+                $.ajax({
+                    url: "api/account",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(ajaxContent),
+                    success: function (data) {
+                        Materialize.toast('新增成功', 4000);
+                        createAccountRow(0, {
+                            Id: data.Id,
+                            username: info[0],
+                            password: info[1],
+                            authority: info[2]
+                        }, "backward");
+                    },
+                    error: function (data) {
+                        console.log(data);
+                        Materialize.toast('新增失敗 原因: ' + data.responseJSON.Message, 4000);
+                    }
+                });
+            });
+
+            function createAccountRow(index, item, direction) {
+                let str_HTML = '<tr class="accountItem" data-accountId="' + item.Id + '">'
+                    + '<td class="accountId">' + item.Id + '</td>'
+                    + '<td class="accountUser">' + item.username + '</td>'
+                    + '<td><div class="">'
+                    + '<input class="accountPwd" value="' + item.password + '"/></div></td>'
+                    + '<td><div class="">'
+                    + AuthoritytoCustom(parseInt(item.authority))
+                    + '</div></td>'
+                    + '<td><a class="waves-effect waves-light btn" onclick="updateAccount(' + item.Id + ')">更新</a>'
+                    + '<a class="waves-effect waves-light btn" onclick="deleteAccount(' + item.Id + ')">刪除</a></td>'
+                    + '</tr>';
+                //let str_HTML = '<div class="accountItem" data-accountId="' + item.Id + '">'
+                //    + '<div class="accountId">' + item.Id + '</div>'
+                //    + '<div class="accountUser">' + item.username + '</div>'
+                //    + '<input class="accountPwd" value="' + item.password + '"/>'
+                //    + '<div class="input-field col s12">'
+                //    + AuthoritytoCustom(parseInt(item.authority))
+                //    + '</div>'
+                //    + '<a onclick="updateAccount(' + item.Id + ')">更新</a>'
+                //    + '<a onclick="deleteAccount(' + item.Id + ')">刪除</a>'
+                //    + '</div>';
+                let el = $(".accountList");
+                if (direction === "forward") {
+                    el.prepend(str_HTML);
+                } else {
+                    el.append(str_HTML);
+                }
+            }
+        });
+
+        $(document).ready(function () {
+            $("#newDropdown").html(AuthoritytoCustom(0));
+            $('select').material_select();
+        });
+
+        function AuthoritytoCustom(id) {
+            let CLASS = ["一般", "管理員"];
+            let str = '<select class="accountType">';
+            for (let i = 0; i < CLASS.length; ++i) {
+                str += '<option value="' + i + '" ';
+                if (id === i) {
+                    str += "selected"
+                }
+                str += '>' + CLASS[i] + '</option>';
+            }
+            return str + '</select>';
+        }
+
+        function updateAccount(id) {
+            let str_el = $('.accountItem[data-accountId="' + id + '"]');
+            let ajaxContent = {
+                "password": str_el.find(".accountPwd").val(),
+                "authority": parseInt(str_el.find(".accountType option:selected").val())
+            }
+            $.ajax({
+                url: "api/account/" + id,
+                type: "PUT",
+                contentType: "application/json",
+                data: JSON.stringify(ajaxContent),
+                success: function (data) {
+                    Materialize.toast('更新成功', 4000);
+                },
+                error: function (data) {
+                    Materialize.toast('更新失敗 原因: ' + data.responseJSON.Message, 4000);
+                }
+            });
+        }
+
+        function deleteAccount(id) {
+            let str_el = $('.accountItem[data-accountId="' + id + '"]');
+            $.ajax({
+                url: "api/account/" + id,
+                type: "DELETE",
+                success: function (data) {
+                    Materialize.toast('刪除成功', 4000);
+                    str_el.remove();
+                },
+                error: function (data) {
+                    Materialize.toast('刪除失敗 原因: ' + data.responseJSON.Message, 4000);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

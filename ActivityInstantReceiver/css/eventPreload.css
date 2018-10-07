@@ -1,0 +1,52 @@
+﻿.eventListPreload>.eventItem{
+    overflow:hidden;
+    width: calc(100% - 2px);
+    margin-top: 5px;
+    margin-bottom: 5px;
+    background-color: white;
+    /*border: solid 1px rgba(0,0,0,0.1);*/
+    box-shadow: 1px 3px 4px 1px rgba(0,0,0,0.2);
+    border-radius: 3px;
+    padding: 8px;
+}
+
+.single> .item {
+  border: 4px solid #fff;
+}/*
+
+.single {
+  border: 8px solid #fff;
+}*/
+
+.single> .line {
+  height: 35px;
+}
+
+.single> .short {
+  width: 33%;
+}
+
+.single> .item{
+  background: linear-gradient(to right, #eeeeee 8%, #e1e1e1 18%, #eeeeee 33%);
+  background-size: 200% 50px;
+  -webkit-animation: preloadAnimation 2s infinite;
+          animation: preloadAnimation 2s infinite;
+}
+
+@-webkit-keyframes preloadAnimation {
+  from {
+    background-position: -280px 0;
+  }
+  to {
+    background-position: 300px 0;
+  }
+}
+
+@keyframes preloadAnimation {
+  from {
+    background-position: -280px 0;
+  }
+  to {
+    background-position: 300px 0;
+  }
+}
