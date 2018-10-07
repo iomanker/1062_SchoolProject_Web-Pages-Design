@@ -19,7 +19,7 @@
     |   └── loghandler.js - 會員身分處理js檔
     ├── entrance.html - 用戶端登入頁面
     ├── eventCenter.html - 用戶端登入後之活動列表呈現
-    ├── eventReceiver.cs - SignalR_用戶端活動即時接收程式
+    ├── eventReceiver.cs - SignalR_活動即時接收程式
     ├── eventTimer.cs - 伺服器端時間類型活動處理程式
     ├── index.html - 用戶端網頁自動導向
     ├── manage.html - 用戶端管理員的活動管理頁面
